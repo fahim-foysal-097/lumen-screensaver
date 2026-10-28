@@ -803,11 +803,144 @@
     }
     ctx.rotate(-time*.00015*state.speed);ctx.beginPath();ctx.arc(0,0,Math.min(width,height)*.03,0,Math.PI*2);ctx.fillStyle=c[1]+'25';ctx.fill();ctx.strokeStyle=c[1]+'99';ctx.stroke();ctx.restore();
   }
+  function sceneNoise(n) {
+    const value = Math.sin(n * 127.1 + 311.7) * 43758.5453123;
+    return value - Math.floor(value);
+  }
+
+  function drawGlassDrop(x, y, rx, ry, alpha = 1, tint = '#b9e8ff') {
+    if (y + ry < -4 || y - ry > height + 4) return;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const shape = new Path2D();
+    shape.moveTo(x, y - ry);
+    shape.bezierCurveTo(x + rx * .7, y - ry * .82, x + rx * 1.05, y - ry * .15, x + rx * .82, y + ry * .38);
+    shape.bezierCurveTo(x + rx * .66, y + ry * .94, x - rx * .58, y + ry * 1.02, x - rx * .83, y + ry * .34);
+    shape.bezierCurveTo(x - rx * 1.06, y - ry * .18, x - rx * .46, y - ry * .86, x, y - ry);
+    const glass = ctx.createLinearGradient(x - rx, y - ry, x + rx, y + ry * .5);
+    glass.addColorStop(0, 'rgba(207,239,255,.08)');
+    glass.addColorStop(.26, tint + '45');
+    glass.addColorStop(.56, 'rgba(9,26,48,.32)');
+    glass.addColorStop(.82, tint + '52');
+    glass.addColorStop(1, 'rgba(225,248,255,.12)');
+    ctx.fillStyle = glass;
+    ctx.fill(shape);
+    ctx.strokeStyle = 'rgba(200,235,255,.28)';
+    ctx.lineWidth = Math.max(.45, rx * .16);
+    ctx.stroke(shape);
+    // The thin off-centre specular streak is what makes the drop read as a lens.
+    ctx.beginPath();
+    ctx.moveTo(x - rx * .24, y - ry * .55);
+    ctx.bezierCurveTo(x - rx * .62, y - ry * .12, x - rx * .43, y + ry * .24, x - rx * .18, y + ry * .42);
+    ctx.strokeStyle = `rgba(231,249,255,${Math.min(.68, .22 + rx * .1)})`;
+    ctx.lineWidth = Math.max(.45, rx * .2);
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawGlassDroplets(time, intensity = 1) {
+    // A stable, seeded distribution avoids flickering and gives large drops a natural long-tail size distribution.
+    const count = Math.min(140, Math.max(30, Math.floor(width / 9.5 * intensity)));
+    for (let i = 0; i < count; i++) {
+      const n = i + 41;
+      const nx = sceneNoise(n * 1.71);
+      const ny = sceneNoise(n * 3.17);
+      const sizeRoll = sceneNoise(n * 4.91);
+      const speedRoll = sceneNoise(n * 8.13);
+      const size = .42 + Math.pow(sizeRoll, 2.65) * (2.5 + Math.min(1.2, width / 900));
+      const speed = 5 + speedRoll * 16;
+      const x = nx * width + Math.sin(time * .14 + n) * size * .32;
+      const y = ((ny * (height + 46) + time * speed) % (height + 46)) - 23;
+      const trailRoll = sceneNoise(n * 6.27);
+      const trail = trailRoll > .62 ? (6 + trailRoll * 34) * size * .34 : size * 1.2;
+      const a = (.18 + sceneNoise(n * 9.73) * .48) * intensity;
+      if (trail > 3) {
+        ctx.beginPath();
+        ctx.moveTo(x - size * .12, y - trail);
+        ctx.bezierCurveTo(x - size * .23, y - trail * .4, x + size * .18, y - trail * .15, x, y + size * .45);
+        // Only a subset of the longest trails need a true gradient; most use a soft translucent stroke.
+        if (trail > 15 && i % 3 === 0) {
+          const gradient = ctx.createLinearGradient(x, y - trail, x, y + size);
+          gradient.addColorStop(0, 'rgba(187,225,255,0)');
+          gradient.addColorStop(.64, `rgba(164,211,244,${a * .28})`);
+          gradient.addColorStop(1, `rgba(219,243,255,${a * .65})`);
+          ctx.strokeStyle = gradient;
+        } else {
+          ctx.strokeStyle = `rgba(164,211,244,${a * .38})`;
+        }
+        ctx.lineWidth = Math.max(.45, size * .34);
+        ctx.lineCap = 'round';
+        ctx.stroke();
+      }
+      // Render medium and large beads as irregular lenses; tiny drops stay economical single glints.
+      if (size > 1.3) drawGlassDrop(x, y, size * .58, size * (1.02 + sceneNoise(n * 11.4) * 1.45), a, i % 4 ? '#a7ddff' : '#c1b5ff');
+      else {
+        ctx.globalAlpha = a * .75;
+        ctx.fillStyle = '#d9f4ff';
+        ctx.fillRect(x, y, .65, 1.5 + size);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  function drawCityBokeh(time, palette = 0) {
+    const colors = palette ? ['#79baff', '#e59ac6', '#ffc779'] : ['#77aaff', '#ee9dc6', '#f6c982', '#88e5e5'];
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = 0; i < 22; i++) {
+      const x = sceneNoise(i * 7.7 + 2) * width;
+      const y = height * (.18 + sceneNoise(i * 13.3 + 8) * .52);
+      const r = 2 + Math.pow(sceneNoise(i * 2.9 + 4), 2) * Math.min(width, height) * .075;
+      const pulse = .74 + .26 * Math.sin(time * .36 + i * 2.7);
+      const color = colors[i % colors.length];
+      const light = ctx.createRadialGradient(x, y, 0, x, y, r * 2.2);
+      light.addColorStop(0, color + 'bb');
+      light.addColorStop(.2, color + '62');
+      light.addColorStop(1, color + '00');
+      ctx.globalAlpha = pulse;
+      ctx.fillStyle = light;
+      ctx.fillRect(x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4);
+      if (r > 5) {
+        ctx.fillStyle = color + '8c';
+        ctx.fillRect(x - r * .12, y - r * .65, Math.max(.7, r * .18), r * 1.3);
+      }
+    }
+    ctx.restore();
+  }
+
   function drawRain(time) {
-    const c=sceneColors();fillBackground('#07101d','#050914','#0b172a');
-    const glow=ctx.createRadialGradient(width*.62,height*.25,0,width*.62,height*.25,width*.65);glow.addColorStop(0,c[1]+'20');glow.addColorStop(1,'#00000000');ctx.fillStyle=glow;ctx.fillRect(0,0,width,height);
-    ctx.save();ctx.lineCap='round';
-    rainDrops.forEach(drop=>{drop.y+=drop.speed*state.speed;drop.x-=drop.speed*.12*state.speed;if(drop.y>height+25){drop.y=random(-height*.2,0);drop.x=random(0,width);}const gradient=ctx.createLinearGradient(drop.x,drop.y-drop.length,drop.x,drop.y);gradient.addColorStop(0,'#ffffff00');gradient.addColorStop(1,c[1]+Math.round(drop.alpha*255).toString(16).padStart(2,'0'));ctx.strokeStyle=gradient;ctx.lineWidth=random(.35,1.2);ctx.beginPath();ctx.moveTo(drop.x,drop.y-drop.length);ctx.lineTo(drop.x,drop.y);ctx.stroke();});ctx.restore();
+    const t = time * .001 * state.speed;
+    const c = sceneColors();
+    fillBackground('#030813', '#030710', '#0b1830');
+    // Defocused architecture and lights sit behind the glass rather than floating on a flat gradient.
+    const skyline = ctx.createLinearGradient(0, height * .2, 0, height);
+    skyline.addColorStop(0, '#08132600');
+    skyline.addColorStop(.5, '#152440a8');
+    skyline.addColorStop(1, '#050913');
+    ctx.fillStyle = skyline;
+    ctx.fillRect(0, 0, width, height);
+    for (let i = 0; i < 34; i++) {
+      const x = i / 34 * width;
+      const bw = width * (.008 + sceneNoise(i * 4.5) * .027);
+      const bh = height * (.15 + sceneNoise(i * 2.1 + 5) * .38);
+      ctx.fillStyle = i % 3 ? '#111c31' : '#18213a';
+      ctx.fillRect(x, height * .84 - bh, bw, bh);
+      for (let row = 0; row < 5; row++) {
+        if (sceneNoise(i * 17 + row * 5) > .61) {
+          ctx.fillStyle = (row + i) % 2 ? 'rgba(255,195,132,.25)' : 'rgba(117,177,255,.24)';
+          ctx.fillRect(x + bw * .24, height * .84 - bh + row * bh * .16, Math.max(.7, bw * .22), Math.max(1, height * .012));
+        }
+      }
+    }
+    drawCityBokeh(t, 0);
+    // Slow vertical beads and their tiny refractions create the close-up rain-on-glass effect.
+    drawGlassDroplets(t * .72, 1.0);
+    const vignette = ctx.createRadialGradient(width * .5, height * .44, Math.min(width, height) * .12, width * .5, height * .5, Math.max(width, height) * .72);
+    vignette.addColorStop(0, '#02071200');
+    vignette.addColorStop(1, '#01040bdc');
+    ctx.fillStyle = vignette;
+    ctx.fillRect(0, 0, width, height);
   }
   function drawFireflies(time) {
     const c=sceneColors();fillBackground('#061614','#020a08','#0b231b');
@@ -1002,7 +1135,86 @@
     if(id==='fractal'||id==='mandala') {fillBackground('#070619','#0a0a22','#1a0c2e');ctx.save();ctx.translate(cx,cy);ctx.rotate(t*.07);const arms=id==='mandala'?16:12;for(let j=0;j<arms;j++){const base=j*Math.PI*2/arms;ctx.beginPath();for(let i=0;i<120;i++){const q=i/119,r=min*(id==='mandala'?.08:.02)+q*min*(id==='mandala'?.32:.34);const a=base+q*(id==='mandala'?1.4:4.2)+Math.sin(q*19+t*.5+j)*.09;const x=Math.cos(a)*r,y=Math.sin(a)*r; i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.strokeStyle=`hsla(${(t*18+j*360/arms)%360},85%,68%,.7)`;ctx.lineWidth=id==='mandala'?1.2:1.5;ctx.stroke();}for(let i=0;i<arms;i++){const a=i*Math.PI*2/arms;ctx.beginPath();ctx.arc(Math.cos(a)*min*.14,Math.sin(a)*min*.14,min*.045,0,Math.PI*2);ctx.strokeStyle=c[1]+'aa';ctx.stroke();}ctx.restore();return;}
     if(id==='dna') {fillBackground('#03101d','#04091a','#07243a');const turns=2.7,rows=Math.floor(height/7);for(let i=0;i<rows;i++){const y=i*height/rows, a=i*.13+t*.8, x1=cx+Math.sin(a)*width*.19,x2=cx+Math.sin(a+Math.PI)*width*.19;ctx.strokeStyle='rgba(108,220,232,.22)';ctx.beginPath();ctx.moveTo(x1,y);ctx.lineTo(x2,y);ctx.stroke();ctx.fillStyle=c[1];ctx.beginPath();ctx.arc(x1,y,2.5+((Math.sin(a)+1)*1.2),0,Math.PI*2);ctx.fill();ctx.fillStyle=c[2];ctx.beginPath();ctx.arc(x2,y,2.5+((Math.sin(a+Math.PI)+1)*1.2),0,Math.PI*2);ctx.fill();}return;}
     if(id==='topography'||id==='quantum'||id==='wireframe') {fillBackground('#050a16','#07141d','#0a102a');const quantum=id==='quantum',wire=id==='wireframe';const rows=quantum?22:36,cols=quantum?40:62;for(let j=0;j<rows;j++){ctx.beginPath();for(let i=0;i<=cols;i++){const x=i/cols*width;const z=j/(rows-1)*2-1;const wave=Math.sin(i*.2+t*.8+j*.24)*Math.cos(i*.075-t*.23+j*.5);const y=height*.5+z*height*.44+wave*(quantum?height*.06:height*.025);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.strokeStyle=wire?`rgba(67,224,217,${.12+j/rows*.38})`:quantum?`rgba(130,150,255,${.15+j/rows*.35})`:`hsla(${25+j*2},75%,68%,.4)`;ctx.lineWidth=quantum?1.6:.85;ctx.stroke();}if(quantum){for(let j=0;j<rows;j+=2)for(let i=0;i<cols;i+=2){const x=i/cols*width,z=j/(rows-1)*2-1,y=height*.5+z*height*.44+Math.sin(i*.2+t*.8+j*.24)*Math.cos(i*.075-t*.23+j*.5)*height*.06;ctx.fillStyle='#b8d7ff';ctx.fillRect(x,y,2,2);}}return;}
-    if(id==='ripples') {fillBackground('#031122','#041b30','#062a3c');ctx.save();ctx.globalCompositeOperation='screen';for(let j=0;j<9;j++){const x=width*(.2+((j*37)%60)/100)+Math.sin(t*.3+j)*width*.025,y=height*(.25+((j*21)%50)/100),phase=(t*22+j*35)%100;for(let r=phase;r<min*.3;r+=24){ctx.beginPath();ctx.ellipse(x,y,r,r*.38,Math.sin(t*.2+j)*.2,0,Math.PI*2);ctx.strokeStyle=`rgba(75,202,239,${.25*(1-r/(min*.35))})`;ctx.lineWidth=1.4;ctx.stroke();}}ctx.restore();return;}
+    if(id==='ripples') {
+      fillBackground('#020a13', '#031521', '#062b38');
+      const horizon = height * .2;
+      const waterGlow = ctx.createLinearGradient(0, horizon, 0, height);
+      waterGlow.addColorStop(0, 'rgba(72,176,202,.06)');
+      waterGlow.addColorStop(.45, 'rgba(34,125,158,.08)');
+      waterGlow.addColorStop(1, 'rgba(1,7,15,.24)');
+      ctx.fillStyle = waterGlow;
+      ctx.fillRect(0, horizon, width, height - horizon);
+
+      // Thin, broken reflection bands move sideways like light on a gently undulating surface.
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      for (let row = 0; row < 39; row++) {
+        const depth = row / 38;
+        const yBase = horizon + depth * depth * (height - horizon) * .96;
+        ctx.beginPath();
+        for (let x = -8; x <= width + 8; x += Math.max(7, width / 90)) {
+          const wave = Math.sin(x * (.011 + depth * .018) + t * (.8 + depth) + row) * (1 + depth * 3.4)
+            + Math.sin(x * .027 - t * 1.4 + row * .8) * depth * 1.3;
+          const y = yBase + wave;
+          if (x < 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        const sheen = .025 + Math.max(0, Math.sin(row * 1.73 + t * .7)) * (.045 + depth * .045);
+        ctx.strokeStyle = `rgba(${row % 3 ? '117,207,221' : '188,236,239'},${sheen})`;
+        ctx.lineWidth = .45 + depth * 1.05;
+        ctx.stroke();
+      }
+
+      // A handful of separate impacts make irregular, perspective-flattened rings instead of perfect circles.
+      const impacts = [
+        [.24, .42, 1.00], [.67, .35, .72], [.48, .66, .88], [.84, .54, .58]
+      ];
+      impacts.forEach(([px, py, scale], index) => {
+        const x0 = width * (px + Math.sin(t * .11 + index * 1.7) * .012);
+        const y0 = height * py;
+        const age = ((t * (.13 + index * .009) + index * .237) % 1 + 1) % 1;
+        for (let ring = 0; ring < 5; ring++) {
+          const phase = (age + ring * .19) % 1;
+          const radius = (9 + phase * Math.min(width, height) * (.24 + .08 * scale));
+          if (radius < 2) continue;
+          const alpha = Math.pow(1 - phase, 1.25) * (.20 + scale * .18);
+          ctx.beginPath();
+          for (let k = 0; k <= 88; k++) {
+            const a = k / 88 * Math.PI * 2;
+            const waviness = 1 + Math.sin(a * 5 + t * 1.7 + ring) * .018 + Math.sin(a * 9 - t * .8 + index) * .011;
+            const rx = radius * waviness;
+            const ry = rx * (.17 + (y0 / height) * .14);
+            const x = x0 + Math.cos(a) * rx;
+            const y = y0 + Math.sin(a) * ry + Math.sin(a * 2 + t + ring) * radius * .003;
+            if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.strokeStyle = `rgba(91,202,225,${alpha})`;
+          ctx.lineWidth = .65 + phase * .65;
+          ctx.stroke();
+          // A darker lower edge paired with the bright edge adds a shallow, wet meniscus.
+          ctx.save();
+          ctx.translate(0, Math.max(.7, radius * .008));
+          ctx.strokeStyle = `rgba(1,8,17,${alpha * .7})`;
+          ctx.lineWidth = .7;
+          ctx.stroke();
+          ctx.restore();
+        }
+        const beadPulse = .5 + .5 * Math.sin(t * 2.7 + index * 2);
+        const bead = ctx.createRadialGradient(x0 - 2, y0 - 2, 0, x0, y0, 7 + beadPulse * 3);
+        bead.addColorStop(0, 'rgba(212,251,255,.22)');
+        bead.addColorStop(1, 'rgba(91,202,225,0)');
+        ctx.fillStyle = bead;
+        ctx.fillRect(x0 - 12, y0 - 12, 24, 24);
+      });
+      ctx.restore();
+      const edge = ctx.createLinearGradient(0, 0, 0, height);
+      edge.addColorStop(0, 'rgba(0,3,10,.28)');
+      edge.addColorStop(.48, 'rgba(0,0,0,0)');
+      edge.addColorStop(1, 'rgba(0,2,8,.42)');
+      ctx.fillStyle = edge;
+      ctx.fillRect(0, 0, width, height);
+      return;
+    }
     if(id==='ink'||id==='plasma') {fillBackground('#050617','#0c0920','#1a0a2a');ctx.save();ctx.globalCompositeOperation='screen';const blobs= id==='plasma'?7:5;for(let i=0;i<blobs;i++){const x=(.12+.76*(i/(blobs-1))+Math.sin(t*.27+i*2)*.12)*width,y=(.5+Math.sin(t*.21+i*2.1)*.28)*height,r=min*(.18+(i%3)*.055);const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,(i%2?c[1]:c[2])+'99');g.addColorStop(.5,(i%2?c[2]:c[1])+'44');g.addColorStop(1,'#00000000');ctx.fillStyle=g;ctx.fillRect(x-r,y-r,r*2,r*2);}if(id==='plasma'){for(let k=0;k<6;k++){ctx.beginPath();for(let x=0;x<=width;x+=8){const y=height*(.2+k*.12)+Math.sin(x*.009+t*.6+k)*height*.06+Math.cos(x*.003-t*.33+k)*height*.04;x===0?ctx.moveTo(x,y):ctx.lineTo(x,y);}ctx.strokeStyle=`hsla(${(t*15+k*45)%360},90%,70%,.35)`;ctx.stroke();}}ctx.restore();return;}
     if(id==='chromatic'||id==='prism') {fillBackground('#050714','#0a0b1d','#10162c');ctx.save();ctx.globalCompositeOperation='screen';if(id==='chromatic'){for(let i=0;i<10;i++){const r=min*(.06+i*.045),x=cx+Math.sin(t*.18+i)*width*.12,y=cy+Math.cos(t*.14+i*1.7)*height*.1;ctx.strokeStyle=['#ff4f9b','#54e4ff','#a98bff'][i%3]+'99';ctx.lineWidth=5;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();}}else{for(let i=0;i<18;i++){const x=((i/18+t*.04)%1)*width;ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(width*.47+Math.sin(t*.1+i)*width*.1,height);ctx.strokeStyle=`hsla(${180+i*9},95%,70%,.28)`;ctx.lineWidth=1+i%4;ctx.stroke();}ctx.beginPath();ctx.moveTo(cx-min*.14,cy-min*.16);ctx.lineTo(cx+min*.18,cy);ctx.lineTo(cx-min*.14,cy+min*.16);ctx.closePath();ctx.strokeStyle='#f9f4ff';ctx.lineWidth=2;ctx.stroke();}ctx.restore();return;}
     if(id==='clockwork') {fillBackground('#090b12','#15151b','#28232a');ctx.save();ctx.translate(cx,cy);const gears=[{x:-min*.18,y:0,r:min*.18,n:12},{x:min*.18,y:-min*.03,r:min*.13,n:10},{x:min*.05,y:min*.25,r:min*.09,n:8}];gears.forEach((g,j)=>{ctx.save();ctx.translate(g.x,g.y);ctx.rotate(t*(j%2?-.16:.16));ctx.beginPath();for(let i=0;i<g.n*2;i++){const a=i*Math.PI/g.n,r=g.r*(i%2?.83:1);const x=Math.cos(a)*r,y=Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();ctx.fillStyle=j===0?'#493b38':j===1?'#2b3b4a':'#554333';ctx.fill();ctx.strokeStyle=['#f1b977','#90d7e2','#d8c6a1'][j];ctx.lineWidth=2;ctx.stroke();ctx.beginPath();ctx.arc(0,0,g.r*.29,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(0,0,g.r*.08,0,Math.PI*2);ctx.fillStyle='#f1d2a2';ctx.fill();for(let k=0;k<4;k++){ctx.beginPath();ctx.moveTo(-g.r*.7,0);ctx.lineTo(g.r*.7,0);ctx.stroke();ctx.rotate(Math.PI/2);}ctx.restore();});ctx.restore();return;}
@@ -1013,15 +1225,331 @@
   function drawNatureScene(id, time) {
     const t=time*.001*state.speed,c=sceneColors(),min=Math.min(width,height);
     if(id==='rainy-city'||id==='storm') {
-      const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,id==='storm'?'#10182c':'#111c36');sky.addColorStop(.7,id==='storm'?'#27344e':'#2c3860');sky.addColorStop(1,'#080e1e');ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
-      for(let i=0;i<48;i++){const bw=width*(.018+((i*7)%10)/220),x=i/48*width,y=height*(.52+((i*17)%35)/100),bh=height*(.14+((i*13)%36)/100);ctx.fillStyle=['#111a30','#1a2340','#202642'][i%3];ctx.fillRect(x,y-bh,bw,bh);for(let r=0;r<Math.floor(bh/16);r++)for(let col=0;col<3;col++){if((i*5+r*7+col*3)%4===0){ctx.fillStyle=(i+r)%2?'#ffce8a55':'#91caff55';ctx.fillRect(x+4+col*5,y-bh+6+r*12,2,4);}}}
-      ctx.strokeStyle='rgba(158,194,255,.44)';ctx.lineWidth=1;for(let i=0;i<Math.floor(width/7);i++){const x=(i*31+t*90)%(width+50)-25,y=(i*71+t*260)%(height+40)-20;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-4,y+14);ctx.stroke();}
-      if(id==='storm'&&Math.sin(t*.72)>0.994){ctx.fillStyle='rgba(220,235,255,.22)';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#e8f3ff';ctx.lineWidth=3;ctx.beginPath();let x=width*(.3+Math.sin(t)*.2),y=0;ctx.moveTo(x,y);for(let i=0;i<7;i++){x+=random(-width*.06,width*.06);y+=height*.11;ctx.lineTo(x,y);}ctx.stroke();}return;
+      if (id === 'rainy-city') {
+        const sky = ctx.createLinearGradient(0, 0, 0, height);
+        sky.addColorStop(0, '#080f20');
+        sky.addColorStop(.48, '#26344f');
+        sky.addColorStop(.76, '#303954');
+        sky.addColorStop(1, '#090f1e');
+        ctx.fillStyle = sky;
+        ctx.fillRect(0, 0, width, height);
+        // A layered skyline softened by haze; building heights and window patterns are deliberately irregular.
+        for (let layer = 0; layer < 3; layer++) {
+          const baseline = height * (.73 + layer * .075);
+          for (let i = 0; i < 42; i++) {
+            const seed = i * 9.17 + layer * 117;
+            const x = (i / 42) * width - width * .015;
+            const bw = width * (.009 + sceneNoise(seed) * .025);
+            const bh = height * (.12 + sceneNoise(seed + 4) * (.28 + layer * .025));
+            const top = baseline - bh;
+            ctx.fillStyle = ['#121d31', '#101a2b', '#0b1425'][layer];
+            ctx.fillRect(x, top, bw, height - top);
+            if (layer < 2) {
+              for (let row = 0; row < Math.floor(bh / Math.max(7, height * .045)); row++) {
+                for (let col = 0; col < 3; col++) {
+                  if (sceneNoise(seed + row * 13 + col * 5) > .58) {
+                    ctx.fillStyle = (i + row + col) % 3 === 0 ? 'rgba(255,191,128,.62)' : 'rgba(133,182,255,.42)';
+                    ctx.fillRect(x + bw * (.16 + col * .28), top + row * height * .045 + height * .022, Math.max(.7, bw * .11), Math.max(1, height * .014));
+                  }
+                }
+              }
+            }
+          }
+        }
+        // Soft light streaks behind the glass create believable depth and rainy-city bokeh.
+        drawCityBokeh(t, 1);
+        const haze = ctx.createLinearGradient(0, height * .35, 0, height);
+        haze.addColorStop(0, 'rgba(121,157,213,.02)');
+        haze.addColorStop(.55, 'rgba(102,139,194,.14)');
+        haze.addColorStop(1, 'rgba(2,7,16,.68)');
+        ctx.fillStyle = haze;
+        ctx.fillRect(0, 0, width, height);
+        drawGlassDroplets(t * .58, 1.05);
+        const vignette = ctx.createRadialGradient(width * .5, height * .48, min * .12, width * .5, height * .5, Math.max(width, height) * .72);
+        vignette.addColorStop(0, 'rgba(0,0,0,0)');
+        vignette.addColorStop(1, 'rgba(1,4,12,.55)');
+        ctx.fillStyle = vignette;
+        ctx.fillRect(0, 0, width, height);
+        return;
+      }
+
+      // Storm: volumetric-looking cloud masses, distant rain curtains, near rain streaks and occasional lightning.
+      const stormSky = ctx.createLinearGradient(0, 0, 0, height);
+      stormSky.addColorStop(0, '#101728');
+      stormSky.addColorStop(.4, '#1d2a42');
+      stormSky.addColorStop(.74, '#263b50');
+      stormSky.addColorStop(1, '#070d19');
+      ctx.fillStyle = stormSky;
+      ctx.fillRect(0, 0, width, height);
+      for (let layer = 0; layer < 3; layer++) {
+        ctx.save();
+        ctx.globalAlpha = .30 - layer * .065;
+        for (let i = 0; i < 12; i++) {
+          const x = ((i / 11) * 1.12 - .06) * width + Math.sin(t * (.025 + layer * .01) + i) * width * .018;
+          const y = height * (.08 + layer * .105 + sceneNoise(i + layer * 42) * .09);
+          const rx = width * (.085 + sceneNoise(i * 3.7 + layer) * .09);
+          const ry = height * (.08 + sceneNoise(i * 4.9 + layer * 7) * .055);
+          const cloud = ctx.createRadialGradient(x, y, ry * .1, x, y, rx);
+          cloud.addColorStop(0, layer === 0 ? '#6a7890' : '#46556e');
+          cloud.addColorStop(.58, '#27364c');
+          cloud.addColorStop(1, '#1a2538' + '00');
+          ctx.fillStyle = cloud;
+          ctx.fillRect(x - rx, y - ry * 1.8, rx * 2, ry * 3.6);
+        }
+        ctx.restore();
+      }
+      // A distant rain curtain gives scale; near diagonal strokes provide motion and depth.
+      for (let curtain = 0; curtain < 18; curtain++) {
+        const cx = curtain / 18 * width;
+        ctx.beginPath();
+        ctx.moveTo(cx, height * .29);
+        ctx.lineTo(cx - width * .025, height * .78);
+        ctx.strokeStyle = `rgba(135,177,218,${.035 + sceneNoise(curtain * 5) * .05})`;
+        ctx.lineWidth = width * .012;
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.lineCap = 'round';
+      for (let i = 0; i < rainDrops.length; i++) {
+        const drop = rainDrops[i];
+        drop.y += drop.speed * (1.25 + drop.length * .015) * state.speed;
+        drop.x -= (drop.speed * .22 + 1.1) * state.speed;
+        if (drop.y > height + 28) { drop.y = -random(8, height * .28); drop.x = random(0, width + 20); }
+        if (drop.x < -12) drop.x = width + 8;
+        const len = drop.length * (1.15 + drop.speed * .09);
+        const grad = ctx.createLinearGradient(drop.x, drop.y - len, drop.x - 3, drop.y);
+        grad.addColorStop(0, 'rgba(169,207,244,0)');
+        grad.addColorStop(1, `rgba(178,215,248,${.08 + drop.alpha * .30})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = drop.length > 19 ? 1.05 : .65;
+        ctx.beginPath();
+        ctx.moveTo(drop.x + 3, drop.y - len);
+        ctx.lineTo(drop.x, drop.y);
+        ctx.stroke();
+      }
+      ctx.restore();
+      // Occasional impact rings and splashes on the very bottom edge suggest wet ground.
+      for (let i = 0; i < 12; i++) {
+        const x = sceneNoise(i * 3.1 + 19) * width;
+        const phase = (t * (.35 + sceneNoise(i * 4.7) * .4) + i * .27) % 1;
+        const rx = 1 + phase * min * .028;
+        const y = height * (.91 + sceneNoise(i * 6.9) * .06);
+        ctx.beginPath();
+        ctx.ellipse(x, y, rx, rx * .19, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(142,195,232,${(1 - phase) * .20})`;
+        ctx.lineWidth = .7;
+        ctx.stroke();
+      }
+      const stormPhase = (t % 13.7);
+      const flash = stormPhase > 5.46 && stormPhase < 5.62 ? (1 - (stormPhase - 5.46) / .16) : (stormPhase > 5.86 && stormPhase < 5.94 ? (1 - (stormPhase - 5.86) / .08) * .6 : 0);
+      if (flash > .02) {
+        ctx.fillStyle = `rgba(208,228,255,${flash * .11})`;
+        ctx.fillRect(0, 0, width, height);
+        const seed = Math.floor(t / 13.7);
+        let bx = width * (.28 + sceneNoise(seed + 3) * .46);
+        let by = height * .02;
+        ctx.save();
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        const points = [];
+        for (let k = 0; k < 9; k++) {
+          bx += (sceneNoise(seed * 11 + k * 5) - .47) * width * .09;
+          by += height * (.055 + sceneNoise(k * 7 + seed) * .035);
+          points.push([bx, by]);
+          ctx.lineTo(bx, by);
+        }
+        ctx.shadowColor = '#cbe8ff';
+        ctx.shadowBlur = 12 * flash;
+        ctx.strokeStyle = `rgba(224,241,255,${.5 + flash * .5})`;
+        ctx.lineWidth = 1.1 + flash * 1.7;
+        ctx.stroke();
+        // A short fork off one of the central branches.
+        if (points.length > 4) {
+          const [fx, fy] = points[4];
+          ctx.beginPath();
+          ctx.moveTo(fx, fy);
+          ctx.lineTo(fx + width * .035, fy + height * .055);
+          ctx.lineTo(fx + width * .07, fy + height * .07);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+      return;
     }
     if(id==='underwater'||id==='jellyfish') {
-      fillBackground('#021324','#022e48','#075269');const beams=6;for(let i=0;i<beams;i++){const x=width*(.07+i*.17+Math.sin(t*.15+i)*.025);ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x+width*.09,height);ctx.lineTo(x+width*.18,height);ctx.closePath();ctx.fillStyle=`rgba(78,235,224,${.025+Math.sin(t*.3+i)*.012})`;ctx.fill();}
-      if(id==='underwater'){for(let i=0;i<48;i++){const x=(i*79+Math.sin(t*.3+i)*22)%width,y=(height-((i*41+t*23)%height)),r=1+(i%4)*.8;ctx.strokeStyle=`rgba(166,240,255,${.2+(i%5)*.1})`;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();}}
-      else {for(let i=0;i<7;i++){const x=width*(.12+i*.13)+Math.sin(t*.22+i*2)*width*.035,y=height*(.42+Math.sin(t*.3+i*1.3)*.22),r=min*(.022+(i%3)*.008);const glow=ctx.createRadialGradient(x,y,0,x,y,r*2.8);glow.addColorStop(0,'#b5fff8aa');glow.addColorStop(.45,(i%2?'#65e6ff':'#c18cff')+'80');glow.addColorStop(1,'#00000000');ctx.fillStyle=glow;ctx.fillRect(x-r*3,y-r*3,r*6,r*6);ctx.fillStyle='#baf6ffbb';ctx.beginPath();ctx.ellipse(x,y,r*1.25,r*.7,0,Math.PI,Math.PI*2);ctx.fill();ctx.strokeStyle='#7deaff77';ctx.lineWidth=1.5;ctx.beginPath();for(let k=0;k<35;k++){const px=x+(k/34-.5)*r*2,py=y+r*.65+Math.sin(k*.6+t*2+i)*r*.35;k?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.stroke();}}return;
+      fillBackground('#010d1d', '#02283c', '#064b5a');
+      // Soft, broken shafts of sunlight fade into the water column.
+      for (let i = 0; i < 7; i++) {
+        const x = width * (.04 + i * .16 + Math.sin(t * .12 + i * 1.3) * .016);
+        const beamW = width * (.035 + (i % 3) * .018);
+        const beam = ctx.createLinearGradient(x, 0, x + beamW * 1.3, height);
+        beam.addColorStop(0, `rgba(87,230,230,${.035 + Math.sin(t * .25 + i) * .012})`);
+        beam.addColorStop(1, 'rgba(44,180,211,0)');
+        ctx.fillStyle = beam;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + beamW, 0);
+        ctx.lineTo(x + beamW * 2.8, height);
+        ctx.lineTo(x + beamW * .8, height);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // Fine suspended particles add scale; the few larger ones are shaded bubbles, not flat circles.
+      const particleCount = id === 'underwater' ? 58 : 38;
+      for (let i = 0; i < particleCount; i++) {
+        const nx = sceneNoise(i * 7.31 + 8);
+        const ny = sceneNoise(i * 3.93 + 14);
+        const x = nx * width + Math.sin(t * (.14 + i % 4 * .02) + i) * 9;
+        const y = height - ((ny * height + t * (5 + i % 8 * 1.7)) % (height + 4));
+        const r = .45 + sceneNoise(i * 4.7) * (id === 'underwater' ? 1.7 : 1.1);
+        ctx.globalAlpha = .12 + sceneNoise(i * 5.1) * .3;
+        ctx.fillStyle = i % 5 ? '#a5efff' : '#d2fff6';
+        if (r > 1.1 && i % 3 === 0) {
+          const bubble = ctx.createRadialGradient(x - r * .38, y - r * .4, .1, x, y, r * 1.6);
+          bubble.addColorStop(0, 'rgba(232,255,255,.85)');
+          bubble.addColorStop(.35, 'rgba(113,218,237,.22)');
+          bubble.addColorStop(.72, 'rgba(89,211,231,.06)');
+          bubble.addColorStop(1, 'rgba(146,241,255,0)');
+          ctx.fillStyle = bubble;
+          ctx.beginPath();
+          ctx.ellipse(x, y, r, r * 1.28, .14, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.ellipse(x - r * .25, y - r * .45, r * .24, r * .12, -.55, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(228,255,255,.68)';
+          ctx.fill();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, r * .55, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+      if (id === 'jellyfish') {
+        const drawJellyfish = (index) => {
+          const depth = .48 + sceneNoise(index * 4.27) * .52;
+          const r = min * (.045 + Math.pow(sceneNoise(index * 2.71), .7) * .045) * (.68 + depth * .65);
+          const x = width * (.08 + index * .137) + Math.sin(t * (.12 + depth * .08) + index * 1.8) * width * (.018 + depth * .018);
+          const y = height * (.23 + sceneNoise(index * 5.8) * .52) + Math.sin(t * (.31 + index * .017) + index * 2.1) * height * (.026 + depth * .03);
+          const w = r * 2.15;
+          const h = r * 1.42;
+          const bellTop = y - h * .48;
+          const rimY = y + h * .12;
+          const hue = index % 4 === 0 ? '#bca6ff' : index % 3 === 0 ? '#79f4ef' : '#8fddff';
+          const secondary = index % 3 === 0 ? '#79baff' : '#d3a6ff';
+          const pulse = .5 + .5 * Math.sin(t * (.76 + depth * .24) + index * 2.2);
+          const alpha = .43 + depth * .38;
+
+          ctx.save();
+          ctx.globalAlpha = alpha;
+          // A very restrained halo gives light emission without turning the animal into a blob.
+          const halo = ctx.createRadialGradient(x, y, r * .08, x, y, r * 2.05);
+          halo.addColorStop(0, hue + '2b');
+          halo.addColorStop(.48, hue + '12');
+          halo.addColorStop(1, hue + '00');
+          ctx.fillStyle = halo;
+          ctx.fillRect(x - r * 2.1, y - r * 1.9, r * 4.2, r * 3.8);
+
+          // The bell has a domed crown and a softly scalloped rim, not a circle or capsule.
+          const bell = new Path2D();
+          bell.moveTo(x - w * .5, rimY);
+          bell.bezierCurveTo(x - w * .62, y - h * .24, x - w * .34, bellTop, x, bellTop - h * .045);
+          bell.bezierCurveTo(x + w * .34, bellTop, x + w * .62, y - h * .24, x + w * .5, rimY);
+          const lobes = 10;
+          for (let k = 0; k < lobes; k++) {
+            const right = x + w * (.5 - k / lobes);
+            const left = x + w * (.5 - (k + 1) / lobes);
+            const mid = (right + left) * .5;
+            const dip = h * (.065 + .018 * Math.sin(k * 2.1 + index));
+            bell.bezierCurveTo(right - (right - left) * .14, rimY + dip * .2, mid + (right - left) * .1, rimY + dip, mid, rimY + dip * .48);
+            bell.bezierCurveTo(mid - (right - left) * .1, rimY + dip, left + (right - left) * .14, rimY + dip * .2, left, rimY + h * .008);
+          }
+          bell.closePath();
+          const bellFill = ctx.createLinearGradient(x, bellTop, x, rimY + h * .1);
+          bellFill.addColorStop(0, 'rgba(229,252,255,.76)');
+          bellFill.addColorStop(.12, hue + 'bb');
+          bellFill.addColorStop(.42, secondary + '82');
+          bellFill.addColorStop(.78, hue + '55');
+          bellFill.addColorStop(1, hue + '22');
+          ctx.fillStyle = bellFill;
+          ctx.fill(bell);
+          ctx.strokeStyle = hue + 'b5';
+          ctx.lineWidth = Math.max(.75, r * .025);
+          ctx.stroke(bell);
+
+          // Subumbrellar shadow and radial canals give the bell structure and translucent volume.
+          ctx.beginPath();
+          ctx.ellipse(x, rimY - h * .015, w * (.39 + pulse * .025), h * .19, 0, 0, Math.PI);
+          ctx.fillStyle = 'rgba(4,27,54,.22)';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(219,251,255,.36)';
+          ctx.lineWidth = Math.max(.45, r * .012);
+          ctx.beginPath();
+          ctx.ellipse(x, rimY - h * .06, w * .38, h * .13, 0, Math.PI * .04, Math.PI * .96);
+          ctx.stroke();
+          for (let k = 0; k < 9; k++) {
+            const a = Math.PI * (.12 + k * .095);
+            const sx = x + Math.cos(a) * w * .39;
+            const sy = rimY - h * .07 - Math.sin(a) * h * .25;
+            ctx.beginPath();
+            ctx.moveTo(x + Math.cos(a) * w * .035, bellTop + h * .42);
+            ctx.quadraticCurveTo(x + Math.cos(a) * w * .18, y - h * .02, sx, sy);
+            ctx.strokeStyle = (k % 3 ? hue : '#e7ffff') + (k % 3 ? '54' : '75');
+            ctx.lineWidth = Math.max(.4, r * .012);
+            ctx.stroke();
+          }
+          // Highlight arcs are offset, so the dome looks wet and translucent.
+          ctx.beginPath();
+          ctx.moveTo(x - w * .31, y - h * .23);
+          ctx.bezierCurveTo(x - w * .26, bellTop + h * .12, x - w * .08, bellTop + h * .035, x + w * .035, bellTop + h * .04);
+          ctx.strokeStyle = 'rgba(246,255,255,.72)';
+          ctx.lineWidth = Math.max(.65, r * .026);
+          ctx.lineCap = 'round';
+          ctx.stroke();
+
+          // Fine tentacles have separate lengths, waves, widths and faint trailing highlights.
+          const tentacleCount = 5 + index % 4;
+          for (let k = 0; k < tentacleCount; k++) {
+            const anchor = x + w * (-.38 + (k / Math.max(1, tentacleCount - 1)) * .76);
+            const length = h * (1.05 + sceneNoise(index * 19 + k * 3) * 2.35);
+            const phase = t * (1.1 + sceneNoise(index * 7 + k) * .65) + index * 1.7 + k * .92;
+            const sway = r * (.18 + sceneNoise(k * 9 + index) * .43);
+            ctx.beginPath();
+            ctx.moveTo(anchor, rimY + h * .06);
+            ctx.bezierCurveTo(anchor + Math.sin(phase) * sway, rimY + length * .29,
+              anchor + Math.sin(phase + 1.7) * sway * 1.8, rimY + length * .72,
+              anchor + Math.sin(phase + 2.5) * sway * 1.25, rimY + length);
+            ctx.strokeStyle = k % 3 === 0 ? secondary + '88' : hue + 'a0';
+            ctx.lineWidth = Math.max(.55, r * (.012 + (k % 3) * .004));
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(anchor - .3, rimY + h * .08);
+            ctx.quadraticCurveTo(anchor + Math.sin(phase + .4) * sway * 1.2, rimY + length * .46,
+              anchor + Math.sin(phase + 2.7) * sway * 1.1 - r * .05, rimY + length * .84);
+            ctx.strokeStyle = 'rgba(222,251,255,.36)';
+            ctx.lineWidth = Math.max(.3, r * .006);
+            ctx.stroke();
+          }
+          // Four thicker oral arms hang beneath the bell and curl independently.
+          for (let k = 0; k < 4; k++) {
+            const anchor = x + w * (-.16 + k * .105);
+            const len = h * (.58 + sceneNoise(index * 31 + k) * .68);
+            const phase = t * 1.25 + k * 1.5 + index;
+            ctx.beginPath();
+            ctx.moveTo(anchor, rimY + h * .02);
+            ctx.bezierCurveTo(anchor + Math.sin(phase) * r * .12, rimY + len * .24,
+              anchor + Math.sin(phase + 1.3) * r * .22, rimY + len * .64,
+              anchor + Math.sin(phase + 2.4) * r * .17, rimY + len);
+            ctx.strokeStyle = secondary + 'b0';
+            ctx.lineWidth = Math.max(.7, r * .022);
+            ctx.stroke();
+          }
+          ctx.restore();
+        };
+        for (let i = 0; i < 7; i++) drawJellyfish(i);
+      }
+      return;
     }
     if(id==='snow-globe') {fillBackground('#0b1630','#1b3151','#536d95');drawStars(time,.25);const moonX=width*.75,moonY=height*.2,moonR=min*.045;ctx.fillStyle='#e3efff';ctx.beginPath();ctx.arc(moonX,moonY,moonR,0,Math.PI*2);ctx.fill();for(let i=0;i<5;i++){const x=width*(.13+i*.18),base=height*(.82+(i%2)*.09),h=height*(.22+(i%3)*.08);ctx.fillStyle=i%2?'#142b45':'#0d2039';ctx.beginPath();ctx.moveTo(x,base-h);ctx.lineTo(x-h*.38,base-h*.38);ctx.lineTo(x-h*.22,base-h*.38);ctx.lineTo(x-h*.5,base);ctx.lineTo(x+h*.5,base);ctx.lineTo(x+h*.22,base-h*.38);ctx.lineTo(x+h*.38,base-h*.38);ctx.closePath();ctx.fill();}for(let i=0;i<120;i++){const x=(i*127.7+Math.sin(t*.6+i)*11)%width,y=(i*91+t*(12+i%15))%height;ctx.globalAlpha=.25+(i%5)*.13;ctx.fillStyle='#f4f8ff';ctx.beginPath();ctx.arc(x,y,i%4===0?1.6:.8,0,Math.PI*2);ctx.fill();}ctx.globalAlpha=1;return;}
     if(id==='desert-dusk') {const sky=ctx.createLinearGradient(0,0,0,height);sky.addColorStop(0,'#171536');sky.addColorStop(.35,'#7e376e');sky.addColorStop(.66,'#f39a78');sky.addColorStop(1,'#21182e');ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);const sx=width*(.72+Math.sin(t*.06)*.015),sy=height*.43,sr=min*.075;ctx.fillStyle='#ffcf9a';ctx.beginPath();ctx.arc(sx,sy,sr,0,Math.PI*2);ctx.fill();for(let j=0;j<4;j++){ctx.beginPath();ctx.moveTo(0,height*(.65+j*.09));for(let x=0;x<=width;x+=5){const y=height*(.65+j*.09)+Math.sin(x/width*5+t*.12+j*1.5)*height*(.055+j*.01)+Math.sin(x/width*9-j)*height*.018;ctx.lineTo(x,y);}ctx.lineTo(width,height);ctx.lineTo(0,height);ctx.closePath();ctx.fillStyle=['#6c355d','#4e2a4a','#302040','#17172b'][j];ctx.fill();}return;}

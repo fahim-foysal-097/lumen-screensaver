@@ -1,4 +1,4 @@
-# Lumen — Ambient Canvas
+# Lumen - Ambient Canvas
 
 A no-build, static screensaver playground made with plain HTML, CSS, and JavaScript. It is ready for GitHub Pages: there is no npm, Node.js, React, bundler, package manager, or compile step required to host it.
 
@@ -29,11 +29,11 @@ A no-build, static screensaver playground made with plain HTML, CSS, and JavaScr
 
 ## Libraries
 
-- [Tailwind CSS Play CDN](https://tailwindcss.com/docs/installation/play-cdn) — utility classes without a build step.
-- [Preline UI](https://preline.co/docs/) — included for its browser-side component interactions.
-- [GSAP](https://gsap.com/docs/v3/Installation/) — lightweight entrance and widget transitions.
-- [Lucide](https://lucide.dev/guide/packages/lucide) — interface icons.
-- Google Fonts — DM Sans, Space Grotesk, and DM Mono.
+- [Tailwind CSS Play CDN](https://tailwindcss.com/docs/installation/play-cdn) - utility classes without a build step.
+- [Preline UI](https://preline.co/docs/) - included for its browser-side component interactions.
+- [GSAP](https://gsap.com/docs/v3/Installation/) - lightweight entrance and widget transitions.
+- [Lucide](https://lucide.dev/guide/packages/lucide) - interface icons.
+- Google Fonts - DM Sans, Space Grotesk, and DM Mono.
 
 No packages need to be installed. The library versions and CDN URLs are defined in `index.html`.
 
