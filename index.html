@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080a12">
+  <meta name="description" content="Lumen — a customizable, always-moving ambient screensaver canvas with draggable widgets.">
+  <title>Lumen — Ambient Canvas</title>
+
+  <!-- Zero-build utility CSS. Tailwind Play CDN is convenient for a static prototype, but is not the optimized production Tailwind deployment. -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-shell" id="appShell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Lumen home">
+        <span class="brand-mark"><span></span><span></span><span></span></span>
+        <span class="brand-word">lumen<span class="brand-period">.</span></span>
+        <span class="brand-divider"></span>
+        <span class="brand-subtitle">AMBIENT CANVAS</span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <a class="nav-link active" href="#canvas-area"><i data-lucide="layout-dashboard"></i> Canvas</a>
+        <a class="nav-link" href="#scene-library"><i data-lucide="images"></i> Scenes</a>
+        <a class="nav-link" href="#widget-library"><i data-lucide="layout-grid"></i> Widgets</a>
+      </nav>
+      <div class="top-actions">
+        <button class="icon-button" id="helpButton" type="button" aria-label="Keyboard shortcuts" title="Keyboard shortcuts"><i data-lucide="keyboard"></i></button>
+        <button class="button button-primary button-small" id="fullscreenButton" type="button"><i data-lucide="maximize"></i><span>Go fullscreen</span></button>
+      </div>
+    </header>
+
+    <main class="workspace" id="top">
+      <section class="intro-row">
+        <div>
+          <div class="eyebrow"><span class="eyebrow-line"></span> YOUR PERSONAL AMBIENT SPACE</div>
+          <h1>Make room for <span>the moment.</span></h1>
+          <p class="intro-copy">A living canvas for your screen. Pick a mood, place your widgets, and let it drift.</p>
+        </div>
+        <div class="intro-meta">
+          <div class="meta-icon"><i data-lucide="infinity"></i></div>
+          <div><strong>Always in motion</strong><small>Loops forever · yours to arrange</small></div>
+        </div>
+      </section>
+
+      <div class="preview-layout" id="canvas-area">
+        <section class="stage-column" aria-label="Screensaver preview">
+          <div class="stage-topline">
+            <div class="stage-title-group"><span class="live-dot"></span><span>LIVE PREVIEW</span><span class="topline-separator">/</span><span id="stageSceneCategory">CALM · ATMOSPHERIC</span></div>
+            <div class="stage-top-actions">
+              <button class="subtle-button" id="randomSceneButton" type="button"><i data-lucide="shuffle"></i> Surprise me</button>
+              <button class="subtle-button" id="cleanModeButton" type="button"><i data-lucide="scan"></i> Clean view</button>
+            </div>
+          </div>
+
+          <div class="stage" id="stage" tabindex="0" aria-label="Animated screensaver canvas">
+            <canvas id="sceneCanvas" aria-label="Animated screensaver background"></canvas>
+            <div class="scene-vignette"></div>
+            <div class="scene-grain"></div>
+            <div class="stage-scene-copy" id="sceneCopy">
+              <div class="scene-overline"><span class="scene-overline-dot"></span><span id="sceneMood">A LITTLE QUIETER</span></div>
+              <h2 id="sceneTitle">Aurora Drift</h2>
+              <p id="sceneDescription">Slow ribbons of light, moving like a thought you almost remembered.</p>
+            </div>
+            <div class="stage-widget-layer" id="widgetLayer" aria-label="Draggable widgets"></div>
+            <div class="stage-controls" aria-label="Preview controls">
+              <button class="stage-control" id="pauseButton" type="button" title="Pause animation (Space)" aria-label="Pause animation"><i data-lucide="pause"></i></button>
+              <button class="stage-control" id="nextSceneButton" type="button" title="Next scene (→)" aria-label="Next scene"><i data-lucide="skip-forward"></i></button>
+              <button class="stage-control" id="stageFullscreenButton" type="button" title="Fullscreen (F)" aria-label="Fullscreen"><i data-lucide="maximize"></i></button>
+            </div>
+            <div class="stage-corner-label"><span class="corner-live"></span> LUMEN / <span id="sceneIndexLabel">01</span></div>
+          </div>
+
+          <div class="stage-footer">
+            <div class="stage-footer-left"><span class="mini-swatch" id="currentSwatch"></span><span class="footer-scene-name" id="footerSceneName">Aurora Drift</span><span class="footer-dot-sep">·</span><span id="footerSceneCount">54 scenes</span></div>
+            <div class="stage-footer-right"><span class="shortcut-hint"><kbd>F</kbd> fullscreen</span><span class="shortcut-hint"><kbd>H</kbd> clean view</span><span class="shortcut-hint"><kbd>←</kbd><kbd>→</kbd> switch scene</span></div>
+          </div>
+
+          <section class="widget-library panel-card" id="widget-library">
+            <div class="section-heading-row">
+              <div><div class="section-kicker">MAKE IT YOURS</div><h3>Place a little utility</h3><p>Click to add. Drag each widget by its top bar.</p></div>
+              <span class="count-pill"><span id="widgetCount">3</span> ON CANVAS</span>
+            </div>
+            <div class="widget-add-grid">
+              <button class="widget-add-button" data-add-widget="clock" type="button"><span class="widget-add-icon violet"><i data-lucide="clock"></i></span><span><strong>Clock</strong><small>Time, date & timezone</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="quote" type="button"><span class="widget-add-icon peach"><i data-lucide="quote"></i></span><span><strong>Daily thought</strong><small>Rotating little reminders</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="focus" type="button"><span class="widget-add-icon mint"><i data-lucide="timer"></i></span><span><strong>Focus timer</strong><small>Count up or set a goal</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="note" type="button"><span class="widget-add-icon amber"><i data-lucide="sticky-note"></i></span><span><strong>Sticky note</strong><small>A thought to keep nearby</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="countdown" type="button"><span class="widget-add-icon blue"><i data-lucide="calendar"></i></span><span><strong>Countdown</strong><small>Count down to a date</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="worldclock" type="button"><span class="widget-add-icon rose"><i data-lucide="globe"></i></span><span><strong>World clock</strong><small>Another city's local time</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="iframe" type="button"><span class="widget-add-icon cyan"><i data-lucide="layout-dashboard"></i></span><span><strong>Web panel</strong><small>Embed a page or dashboard</small></span><i data-lucide="plus" class="add-plus"></i></button>
+              <button class="widget-add-button" data-add-widget="battery" type="button"><span class="widget-add-icon lime"><i data-lucide="battery-charging"></i></span><span><strong>Battery</strong><small>When browser support exists</small></span><i data-lucide="plus" class="add-plus"></i></button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="control-column" aria-label="Scene controls">
+          <section class="panel-card scene-panel" id="scene-library">
+            <div class="panel-heading">
+              <div><div class="section-kicker">SCENE LIBRARY</div><h3>Find your atmosphere</h3></div>
+              <span class="scene-count" id="sceneCount">54</span>
+            </div>
+            <div class="scene-search-wrap"><i data-lucide="search"></i><input id="sceneSearch" type="search" placeholder="Find a scene…" aria-label="Search scenes"><kbd>/</kbd></div>
+            <div class="scene-filter-row" role="group" aria-label="Filter scenes">
+              <button class="filter-chip active" data-filter="all" type="button">All</button>
+              <button class="filter-chip" data-filter="calm" type="button">Calm</button>
+              <button class="filter-chip" data-filter="cosmic" type="button">Cosmic</button>
+              <button class="filter-chip" data-filter="nature" type="button">Nature</button>
+              <button class="filter-chip" data-filter="digital" type="button">Digital</button>
+              <button class="filter-chip" data-filter="system" type="button">System</button>
+              <button class="filter-chip" data-filter="retro" type="button">Retro</button>
+              <button class="filter-chip" data-filter="abstract" type="button">Abstract</button>
+            </div>
+            <div class="scene-grid" id="sceneGrid"></div>
+            <div class="scene-panel-footer"><i data-lucide="infinity"></i><span>Every scene is an endless loop</span></div>
+          </section>
+
+          <section class="panel-card settings-panel">
+            <div class="panel-heading"><div><div class="section-kicker">ATMOSPHERE</div><h3>Fine-tune the flow</h3></div><span class="settings-sparkle"><i data-lucide="sliders-horizontal"></i></span></div>
+            <div class="setting-row"><div class="setting-copy"><label for="speedRange">Motion speed</label><small>How quickly the scene drifts</small></div><output id="speedValue" for="speedRange">1.0×</output></div>
+            <input class="range-input" id="speedRange" type="range" min="0.25" max="2.5" value="1" step="0.05" aria-label="Animation speed">
+            <div class="range-labels"><span>Dreamy</span><span>Restless</span></div>
+            <div class="setting-row density-row"><div class="setting-copy"><label for="densityRange">Particle density</label><small>Stars, sparks and details</small></div><output id="densityValue" for="densityRange">1.0×</output></div>
+            <input class="range-input" id="densityRange" type="range" min="0.4" max="1.8" value="1" step="0.1" aria-label="Particle density">
+            <div class="settings-divider"></div>
+            <label class="setting-toggle"><span class="toggle-copy"><strong>Soft glow</strong><small>Give lights a little bloom</small></span><input type="checkbox" id="glowToggle" checked><span class="toggle-ui"></span></label>
+            <label class="setting-toggle"><span class="toggle-copy"><strong>Scene autopilot</strong><small>Rotate through scenes for you</small></span><input type="checkbox" id="cycleToggle"><span class="toggle-ui"></span></label>
+            <div class="cycle-options" id="cycleOptions"><label for="cycleInterval">Change scene every</label><select id="cycleInterval"><option value="1">1 minute</option><option value="3" selected>3 minutes</option><option value="5">5 minutes</option><option value="10">10 minutes</option><option value="20">20 minutes</option></select></div>
+            <div class="settings-divider"></div>
+            <div class="palette-heading"><div><strong>Color atmosphere</strong><small>Recolor supported scenes</small></div></div>
+            <div class="palette-picker" role="group" aria-label="Color atmosphere">
+              <button class="palette-option selected" data-palette="default" type="button" title="Original palette" aria-label="Original palette"><span class="palette-dots palette-default"><i></i><i></i><i></i></span></button>
+              <button class="palette-option" data-palette="ocean" type="button" title="Deep ocean" aria-label="Deep ocean palette"><span class="palette-dots palette-ocean"><i></i><i></i><i></i></span></button>
+              <button class="palette-option" data-palette="sunset" type="button" title="Soft sunset" aria-label="Soft sunset palette"><span class="palette-dots palette-sunset"><i></i><i></i><i></i></span></button>
+              <button class="palette-option" data-palette="emerald" type="button" title="Emerald" aria-label="Emerald palette"><span class="palette-dots palette-emerald"><i></i><i></i><i></i></span></button>
+              <button class="palette-option" data-palette="mono" type="button" title="Monochrome" aria-label="Monochrome palette"><span class="palette-dots palette-mono"><i></i><i></i><i></i></span></button>
+            </div>
+            <button class="reset-button" id="resetButton" type="button"><i data-lucide="rotate-ccw"></i> Reset canvas setup</button>
+          </section>
+        </aside>
+      </div>
+
+      <section class="bottom-note-row">
+        <div class="note-bulb"><i data-lucide="lightbulb"></i></div>
+        <p><strong>A small note about web panels.</strong> Sites can block iframe embedding. If a page refuses to load, open it separately or configure that site to allow embedding. Browsers also prevent this page from extracting arbitrary sections of a different domain.</p>
+        <a href="#widget-library" class="inline-link">Add a panel <i data-lucide="arrow-up-right"></i></a>
+      </section>
+      <footer class="footer"><span>© <span id="yearNow"></span> LUMEN CANVAS</span><span>Made for your peripheral vision <span class="footer-heart">✦</span></span></footer>
+    </main>
+  </div>
+
+  <!-- Widget configuration modal. Kept in the page so GitHub Pages needs no templates or runtime. -->
+  <div class="modal-backdrop" id="widgetModal" hidden>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal-header"><div><div class="section-kicker">CANVAS WIDGET</div><h2 id="modalTitle">Add a widget</h2></div><button class="icon-button modal-close" id="modalClose" type="button" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <form id="widgetForm">
+        <input type="hidden" id="editingWidgetId">
+        <input type="hidden" id="modalWidgetType">
+        <label class="form-field" for="widgetTitleInput"><span>Widget label</span><input id="widgetTitleInput" type="text" maxlength="48" placeholder="A little reminder"></label>
+        <div class="form-field" id="widgetTextField" hidden><label for="widgetTextInput">Text</label><textarea id="widgetTextInput" rows="4" maxlength="500" placeholder="Write something you want to remember…"></textarea></div>
+        <div class="form-field" id="widgetUrlField" hidden><label for="widgetUrlInput">Website URL</label><input id="widgetUrlInput" type="url" placeholder="https://your-site.example" inputmode="url"><small>Use a full http:// or https:// address. Many websites disable embedding.</small></div>
+        <div class="form-field" id="widgetDateField" hidden><label for="widgetDateInput">Target date and time</label><input id="widgetDateInput" type="datetime-local"></div>
+        <div class="form-field" id="widgetTimezoneField" hidden><label for="widgetTimezoneInput">Timezone</label><select id="widgetTimezoneInput"><option value="Asia/Dhaka">Dhaka</option><option value="Asia/Kolkata">Kolkata</option><option value="Asia/Tokyo">Tokyo</option><option value="Europe/London">London</option><option value="Europe/Paris">Paris</option><option value="America/New_York">New York</option><option value="America/Los_Angeles">Los Angeles</option><option value="Australia/Sydney">Sydney</option><option value="UTC">UTC</option></select></div>
+        <div class="form-field" id="widgetDurationField" hidden><label for="widgetDurationInput">Focus goal (minutes)</label><input id="widgetDurationInput" type="number" min="1" max="600" value="25"></div>
+        <p class="form-error" id="widgetFormError" role="alert" hidden></p>
+        <div class="modal-actions"><button class="button button-quiet" id="modalCancel" type="button">Cancel</button><button class="button button-primary" type="submit"><i data-lucide="check"></i><span id="modalSubmitLabel">Add to canvas</span></button></div>
+      </form>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="helpModal" hidden>
+    <section class="modal-card help-card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="modal-header"><div><div class="section-kicker">QUICK CONTROLS</div><h2 id="helpTitle">A few useful keys</h2></div><button class="icon-button" id="helpClose" type="button" aria-label="Close"><i data-lucide="x"></i></button></div>
+      <div class="shortcut-list"><div><span>Toggle fullscreen</span><kbd>F</kbd></div><div><span>Show / hide interface</span><kbd>H</kbd></div><div><span>Pause / resume animation</span><kbd>Space</kbd></div><div><span>Previous / next scene</span><span><kbd>←</kbd> <kbd>→</kbd></span></div><div><span>Search scenes</span><kbd>/</kbd></div><div><span>Close a dialog</span><kbd>Esc</kbd></div></div>
+      <p class="modal-footnote">Fullscreen must be started by a click or key press. Automatic idle mode can hide controls, but browsers do not allow a website to force fullscreen on its own.</p>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><i data-lucide="check-circle-2"></i><span id="toastText">Saved</span></div>
+
+  <!-- CDN libraries: no local package installation or build tools required. -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/preline@2.7.0/dist/preline.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
